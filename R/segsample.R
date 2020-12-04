@@ -118,8 +118,8 @@ segsample <- function(mysegs, ratcol, startcol="StartProbe",
     }
     
     ## Calculate the mean of the sampled bins for each segment
-    ## Each segment may be sampled more than once depending of the
-    ## blocksize and times parameters
+    ## Each segment may be repeated more than once depending of the
+    ## blocksize or times parameters
     # Modified for weight
     return(cbind(segtable, apply(segtable, 1, smedian.sample, 
                                  v=ratcol, w = weightcol)))

@@ -248,20 +248,22 @@
 CNpreprocessing <- function(segall, ratall=NULL, idCol=NULL, startCol=NULL,
     endCol=NULL, medCol=NULL, madCol=NULL, errorCol=NULL, chromCol=NULL,
     bpStartCol=NULL, bpEndCol=NULL, annot=NULL, annotStartCol=NULL, 
-    annotEndCol=NULL, annotChromCol=NULL, useEnd=FALSE, blsize=NULL, 
+    annotEndCol=NULL, annotChromCol=NULL, # Parameters files input
+    useEnd=FALSE, blsize=NULL, 
     minJoin=NULL, nTrial=10, bestBIC=-1e7, modelNames="E", cWeight=NULL,
     bsTimes=NULL, chromRange=NULL, nJobs=1, normalLength=NULL, 
     normalMedian=NULL, normalMad=NULL,
     normalError=NULL, weightall=NULL, keepClust=FALSE) {
     
-    configCall <- list(nTrial=nTrial, 
+    configCall <- list(useEnd=useEnd,
+                       blsize=blsize,
+                       nTrial=nTrial, 
                        bestBIC=bestBIC, 
                        modelNames=modelNames, 
                        cWeight=cWeight,
                        bsTimes=bsTimes, 
                        chromRange=chromRange, 
                        nJobs=nJobs, 
-                       normalLength=normalLength, 
                        keepClust=keepClust)
 
     ## Parameters validation
@@ -426,7 +428,16 @@ CNpreprocessing <- function(segall, ratall=NULL, idCol=NULL, startCol=NULL,
         gc()
 
         ## Running each profile id on a separate thread
-        processed <- bptry(bplapply(X=profpack, FUN=CNclusterNcenter, 
+        ## return a list:
+        ## seg: correspond to the stat of the seg
+        ## clustRes: correpond to the a list:
+        ## bestaaa: best sampling used for bestem, 
+        ## bestem the cluster of the segement (mclust object),
+        ## emnew Join clusters with minimum overlap and 
+        ## Join clusters until the main cluster contain the minimum required
+        ## ratio of data
+        
+        processed <- bptry(bplapply(X=profpack, FUN=CNprep:::CNclusterNcenter, 
                                 blsize=blsize, minJoin=minJoin, nTrial=nTrial, 
                                 bestBIC=bestBIC, modelNames=modelNames, 
                                 cweight=cWeight, bstimes=bsTimes, 
@@ -439,20 +450,27 @@ CNpreprocessing <- function(segall, ratall=NULL, idCol=NULL, startCol=NULL,
         }
 
         #segall <- cbind(segall, do.call(rbind, processed))
-        #saveRDS(processed, "processed.rds")
+        # split the result in segall and segCluster
         if(keepClust){
             segall <- cbind(segall, 
                             do.call(rbind, 
                                     vapply(processed, 
                                            FUN=function(x){return(list(x$seg))},
                                            FUN.VALUE = list(1))))
-            resClust <- vapply(processed, 
+            segCluster <- vapply(processed, 
                                FUN=function(x){return(list(x$clustRes))},
                                FUN.VALUE = list(1))
-            names(resClust) <- names(processed)
+            names(segCluster) <- names(processed)
             
         } else{
-            segall <- cbind(segall, do.call(rbind, processed))
+            
+            # in case cluster
+            segall <- cbind(segall, 
+                            do.call(rbind, 
+                                    vapply(processed, 
+                                           FUN=function(x){return(list(x$seg))},
+                                           FUN.VALUE = list(1))))
+            #<- cbind(segall, do.call(rbind, processed))
         }
         
 
@@ -496,9 +514,12 @@ CNpreprocessing <- function(segall, ratall=NULL, idCol=NULL, startCol=NULL,
     }
     
     if(keepClust){
-        res <- list(segall=segall,
-                    resClust=resClust)
-    }else{
+        # TODO create a class to print the results etc
+        res <- list(config=configCall,
+                    segall=segall,
+                    segCluster=segCluster
+                    )
+    }else{ # return the same format of preceding CNprep
         res=segall
     }
     

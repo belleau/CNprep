@@ -67,5 +67,5 @@ test_that("CNclusterNcenter() must return expected results 01", {
                             "cpb", "maxz", "maxzmean", "maxzsigma")
     rownames(expected) <- c(1, 2, 2, 1, 2)
     
-    expect_equal(results, expected)
+    expect_equal(results$seg, expected)
 })
